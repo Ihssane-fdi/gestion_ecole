@@ -1,3 +1,38 @@
+<?php
+session_start();
+if (!isset($_SESSION['user'])) {
+    header('Location: index.php');
+    exit();
+}
+
+// Connexion à la base de données
+$host = 'localhost';
+$dbname = 'gestion_ecole';
+$username = 'root'; // À adapter selon votre configuration
+$password = ''; // À adapter selon votre configuration
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    // Compter les étudiants
+    $stmt = $pdo->query("SELECT COUNT(*) FROM student");
+    $studentCount = $stmt->fetchColumn();
+    
+    // Compter les professeurs
+    $stmt = $pdo->query("SELECT COUNT(*) FROM prof");
+    $profCount = $stmt->fetchColumn();
+    
+    // Récupérer la liste des étudiants
+    $students = $pdo->query("SELECT * FROM student")->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Récupérer la liste des professeurs
+    $professors = $pdo->query("SELECT * FROM prof")->fetchAll(PDO::FETCH_ASSOC);
+    
+} catch (PDOException $e) {
+    die("Erreur de connexion à la base de données: " . $e->getMessage());
+}
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -258,6 +293,22 @@
             display: none;
         }
 
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -284,7 +335,7 @@
             <a href="#" onclick="showPage('accueil')" id="nav-accueil" class="active">🏠 Accueil</a>
             <a href="#" onclick="showPage('etudiants')" id="nav-etudiants">🎓 Étudiants</a>
             <a href="#" onclick="showPage('professeurs')" id="nav-professeurs">📚 Professeurs</a>
-            <a href="index.html">🚪 Déconnexion</a>
+            <a href="logout.php">🚪 Déconnexion</a>
         </div>
     </nav>
 
@@ -297,12 +348,12 @@
             <div class="dashboard-grid">
                 <div class="stat-card">
                     <div class="icon">🎓</div>
-                    <h2 id="student-count">150</h2>
+                    <h2 id="student-count"><?php echo $studentCount; ?></h2>
                     <p>Étudiants inscrits</p>
                 </div>
                 <div class="stat-card">
                     <div class="icon">📚</div>
-                    <h2 id="prof-count">25</h2>
+                    <h2 id="prof-count"><?php echo $profCount; ?></h2>
                     <p>Professeurs</p>
                 </div>
                 <div class="stat-card">
@@ -320,86 +371,80 @@
                 <button class="btn" onclick="toggleForm('student-form')">➕ Ajouter un étudiant</button>
             </div>
 
+            <?php
+            if (isset($_GET['student_added']) && $_GET['student_added'] == 'success') {
+                echo '<div class="success">Étudiant ajouté avec succès!</div>';
+            }
+            if (isset($_GET['student_error'])) {
+                echo '<div class="error">Erreur lors de l\'ajout de l\'étudiant: ' . htmlspecialchars($_GET['student_error']) . '</div>';
+            }
+            ?>
+
             <div id="student-form" class="form-container hidden">
                 <h3 style="margin-bottom: 1.5rem; color: #333;">Nouveau Étudiant</h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Code</label>
-                        <input type="text" id="student-code" placeholder="Ex: ET001" required>
+                <form method="POST" action="add_student.php">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>CIN</label>
+                            <input type="text" name="cin" placeholder="Ex: AB123456" required maxlength="8">
+                        </div>
+                        <div class="form-group">
+                            <label>Nom</label>
+                            <input type="text" name="nom" placeholder="Nom de famille" required maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Prénom</label>
+                            <input type="text" name="prenom" placeholder="Prénom" required maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" name="email" placeholder="exemple@ensa.ma" required maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Numéro</label>
+                            <input type="tel" name="numero" placeholder="Numéro de téléphone" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Adresse</label>
+                            <input type="text" name="adresse" placeholder="Adresse complète" required maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label>Classe</label>
+                            <input type="text" name="class" placeholder="Ex: GI1" required maxlength="9">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Nom</label>
-                        <input type="text" id="student-nom" placeholder="Nom de famille" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Prénom</label>
-                        <input type="text" id="student-prenom" placeholder="Prénom" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="student-email" placeholder="exemple@ensa.ma" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Sexe</label>
-                        <select id="student-sexe">
-                            <option value="M">Masculin</option>
-                            <option value="F">Féminin</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Filière</label>
-                        <input type="text" id="student-filiere" placeholder="Ex: Génie Informatique" required>
-                    </div>
-                </div>
-                <button class="btn" onclick="addStudent()" style="margin-top: 1rem;">💾 Enregistrer</button>
+                    <button type="submit" class="btn" style="margin-top: 1rem;">💾 Enregistrer</button>
+                </form>
             </div>
 
             <table>
                 <thead>
                     <tr>
-                        <th>Code</th>
+                        <th>CIN</th>
                         <th>Nom</th>
                         <th>Prénom</th>
                         <th>Email</th>
-                        <th>Sexe</th>
-                        <th>Filière</th>
+                        <th>Numéro</th>
+                        <th>Adresse</th>
+                        <th>Classe</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="students-table">
+                    <?php foreach ($students as $student): ?>
                     <tr>
-                        <td>ET001</td>
-                        <td>Alami</td>
-                        <td>Mohammed</td>
-                        <td>alami@ensa.ma</td>
-                        <td>M</td>
-                        <td>Génie Informatique</td>
+                        <td><?php echo htmlspecialchars($student['cin']); ?></td>
+                        <td><?php echo htmlspecialchars($student['nom']); ?></td>
+                        <td><?php echo htmlspecialchars($student['prenom']); ?></td>
+                        <td><?php echo htmlspecialchars($student['email']); ?></td>
+                        <td><?php echo htmlspecialchars($student['numero']); ?></td>
+                        <td><?php echo htmlspecialchars($student['adresse']); ?></td>
+                        <td><?php echo htmlspecialchars($student['class']); ?></td>
                         <td>
                             <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">✏️ Modifier</button>
                         </td>
                     </tr>
-                    <tr>
-                        <td>ET002</td>
-                        <td>Bennani</td>
-                        <td>Fatima</td>
-                        <td>bennani@ensa.ma</td>
-                        <td>F</td>
-                        <td>Génie Civil</td>
-                        <td>
-                            <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">✏️ Modifier</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>ET003</td>
-                        <td>Slimani</td>
-                        <td>Ahmed</td>
-                        <td>slimani@ensa.ma</td>
-                        <td>M</td>
-                        <td>Génie Informatique</td>
-                        <td>
-                            <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">✏️ Modifier</button>
-                        </td>
-                    </tr>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
@@ -411,72 +456,86 @@
                 <button class="btn" onclick="toggleForm('prof-form')">➕ Ajouter un professeur</button>
             </div>
 
+            <?php
+            if (isset($_GET['prof_added']) && $_GET['prof_added'] == 'success') {
+                echo '<div class="success">Professeur ajouté avec succès!</div>';
+            }
+            if (isset($_GET['prof_error'])) {
+                echo '<div class="error">Erreur lors de l\'ajout du professeur: ' . htmlspecialchars($_GET['prof_error']) . '</div>';
+            }
+            ?>
+
             <div id="prof-form" class="form-container hidden">
                 <h3 style="margin-bottom: 1.5rem; color: #333;">Nouveau Professeur</h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Code</label>
-                        <input type="text" id="prof-code" placeholder="Ex: PR001" required>
+                <form method="POST" action="add_professor.php">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>CIN</label>
+                            <input type="text" name="cin" placeholder="Ex: AB123456" required maxlength="8">
+                        </div>
+                        <div class="form-group">
+                            <label>Nom</label>
+                            <input type="text" name="nom" placeholder="Nom de famille" required maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Prénom</label>
+                            <input type="text" name="prenom" placeholder="Prénom" required maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" name="email" placeholder="exemple@ensa.ma" required maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label>Numéro</label>
+                            <input type="tel" name="numero" placeholder="Numéro de téléphone" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Adresse</label>
+                            <input type="text" name="adresse" placeholder="Adresse complète" required maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label>Département</label>
+                            <input type="text" name="departement" placeholder="Ex: Informatique" required maxlength="9">
+                        </div>
+                        <div class="form-group">
+                            <label>Matière</label>
+                            <input type="text" name="matiere" placeholder="Ex: Développement Web" required maxlength="29">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Nom</label>
-                        <input type="text" id="prof-nom" placeholder="Nom de famille" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Prénom</label>
-                        <input type="text" id="prof-prenom" placeholder="Prénom" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="prof-email" placeholder="exemple@ensa.ma" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Langues</label>
-                        <input type="text" id="prof-langues" placeholder="Ex: FR, EN, AR" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Spécialité</label>
-                        <input type="text" id="prof-specialite" placeholder="Ex: DevOps" required>
-                    </div>
-                </div>
-                <button class="btn" onclick="addProfessor()" style="margin-top: 1rem;">💾 Enregistrer</button>
+                    <button type="submit" class="btn" style="margin-top: 1rem;">💾 Enregistrer</button>
+                </form>
             </div>
 
             <table>
                 <thead>
                     <tr>
-                        <th>Code</th>
+                        <th>CIN</th>
                         <th>Nom</th>
                         <th>Prénom</th>
                         <th>Email</th>
-                        <th>Langues</th>
-                        <th>Spécialité</th>
+                        <th>Numéro</th>
+                        <th>Adresse</th>
+                        <th>Département</th>
+                        <th>Matière</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="professors-table">
+                    <?php foreach ($professors as $professor): ?>
                     <tr>
-                        <td>PR001</td>
-                        <td>Ghailani</td>
-                        <td>Mehdi</td>
-                        <td>ghailani@ensa.ma</td>
-                        <td>FR, EN</td>
-                        <td>DevOps</td>
+                        <td><?php echo htmlspecialchars($professor['cin']); ?></td>
+                        <td><?php echo htmlspecialchars($professor['nom']); ?></td>
+                        <td><?php echo htmlspecialchars($professor['prenom']); ?></td>
+                        <td><?php echo htmlspecialchars($professor['email']); ?></td>
+                        <td><?php echo htmlspecialchars($professor['numero']); ?></td>
+                        <td><?php echo htmlspecialchars($professor['adresse']); ?></td>
+                        <td><?php echo htmlspecialchars($professor['departement']); ?></td>
+                        <td><?php echo htmlspecialchars($professor['matiere']); ?></td>
                         <td>
                             <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">✏️ Modifier</button>
                         </td>
                     </tr>
-                    <tr>
-                        <td>PR002</td>
-                        <td>Ouhabi</td>
-                        <td>Sara</td>
-                        <td>ouhabi@ensa.ma</td>
-                        <td>FR, AR</td>
-                        <td>Base de données</td>
-                        <td>
-                            <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">✏️ Modifier</button>
-                        </td>
-                    </tr>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
@@ -510,87 +569,6 @@
         function toggleForm(formId) {
             const form = document.getElementById(formId);
             form.classList.toggle('hidden');
-        }
-
-        function addStudent() {
-            const code = document.getElementById('student-code').value;
-            const nom = document.getElementById('student-nom').value;
-            const prenom = document.getElementById('student-prenom').value;
-            const email = document.getElementById('student-email').value;
-            const sexe = document.getElementById('student-sexe').value;
-            const filiere = document.getElementById('student-filiere').value;
-
-            if (!code || !nom || !prenom || !email || !filiere) {
-                alert('Veuillez remplir tous les champs');
-                return;
-            }
-
-            const table = document.getElementById('students-table');
-            const newRow = table.insertRow();
-            newRow.innerHTML = `
-                <td>${code}</td>
-                <td>${nom}</td>
-                <td>${prenom}</td>
-                <td>${email}</td>
-                <td>${sexe}</td>
-                <td>${filiere}</td>
-                <td>
-                    <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">✏️ Modifier</button>
-                </td>
-            `;
-
-            // Réinitialiser le formulaire
-            document.getElementById('student-code').value = '';
-            document.getElementById('student-nom').value = '';
-            document.getElementById('student-prenom').value = '';
-            document.getElementById('student-email').value = '';
-            document.getElementById('student-filiere').value = '';
-            
-            // Cacher le formulaire
-            toggleForm('student-form');
-            
-            alert('Étudiant ajouté avec succès!');
-        }
-
-        function addProfessor() {
-            const code = document.getElementById('prof-code').value;
-            const nom = document.getElementById('prof-nom').value;
-            const prenom = document.getElementById('prof-prenom').value;
-            const email = document.getElementById('prof-email').value;
-            const langues = document.getElementById('prof-langues').value;
-            const specialite = document.getElementById('prof-specialite').value;
-
-            if (!code || !nom || !prenom || !email || !langues || !specialite) {
-                alert('Veuillez remplir tous les champs');
-                return;
-            }
-
-            const table = document.getElementById('professors-table');
-            const newRow = table.insertRow();
-            newRow.innerHTML = `
-                <td>${code}</td>
-                <td>${nom}</td>
-                <td>${prenom}</td>
-                <td>${email}</td>
-                <td>${langues}</td>
-                <td>${specialite}</td>
-                <td>
-                    <button class="btn" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;">✏️ Modifier</button>
-                </td>
-            `;
-
-            // Réinitialiser le formulaire
-            document.getElementById('prof-code').value = '';
-            document.getElementById('prof-nom').value = '';
-            document.getElementById('prof-prenom').value = '';
-            document.getElementById('prof-email').value = '';
-            document.getElementById('prof-langues').value = '';
-            document.getElementById('prof-specialite').value = '';
-            
-            // Cacher le formulaire
-            toggleForm('prof-form');
-            
-            alert('Professeur ajouté avec succès!');
         }
     </script>
 </body>
