@@ -1,6 +1,8 @@
 <?php
-echo "Message depuis main pour conflit";
+
+echo "Message final après résolution du conflit";
 ?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
