@@ -1,3 +1,7 @@
+<?php
+echo "Message depuis la feature conflit";
+?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
