@@ -1,3 +1,6 @@
+<?php
+echo "Message depuis main pour conflit";
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
